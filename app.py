@@ -17,12 +17,13 @@ from pytorch_lightning import seed_everything
 
 class Image2Video():
     def __init__(self, resolution='320_512', is_interp=False, gpu_num=1) -> None:
-        self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
-        self.download_model()
         self.suffix=""
         if is_interp:
             self.suffix="_Interp"
         
+        self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
+        self.download_model()
+  
         ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+self.suffix+'_v1/model.ckpt'
         config_file='configs/inference_'+resolution.split('_')[1]+'_v1.0.yaml'
         config = OmegaConf.load(config_file)
