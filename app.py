@@ -108,8 +108,8 @@ def get_parser():
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
     parser.add_argument("--prompt", type=str, default="a woman looking out in the rain", help="Text prompt for the video")
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
-    parser.add_argument("--width", type=str, default=512, help="image width, in pixel space")
-    parser.add_argument("--height", type=str, default=320, help="image height, in pixel space")
+    parser.add_argument("--width", type=int, default=512, help="image width, in pixel space")
+    parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
     return parser
 
 if __name__ == "__main__":
