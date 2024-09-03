@@ -18,6 +18,7 @@ from pytorch_lightning import seed_everything
 class Image2Video():
     def __init__(self, resolution='320_512', is_interp=False, gpu_num=1) -> None:
         self.suffix=""
+        self.is_interp=is_interp
         if is_interp:
             self.suffix="_Interp"
         
@@ -77,6 +78,11 @@ class Image2Video():
             
             img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
 
+            if self.is_interp:
+                img_tensor_repeat = torch.zeros_like(img_tensor_repeat)
+                img_tensor_repeat[:,:,:1,:,:] = z
+                img_tensor_repeat[:,:,-1:,:,:] = z
+
             cond_images = model.embedder(img_tensor.unsqueeze(0)) ## blc
             img_emb = model.image_proj_model(cond_images)
 
@@ -88,6 +94,8 @@ class Image2Video():
             ## inference
             batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
             ## b,samples,c,t,h,w
+            if self.is_interp:
+                batch_samples = batch_samples[:,:,:,:-1,...]
 
             out_vid_nm = Path(result).stem
             result_dir = Path(result).parent
