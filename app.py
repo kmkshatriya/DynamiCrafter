@@ -15,7 +15,7 @@ from pytorch_lightning import seed_everything
 
 
 class Image2Video():
-    def __init__(self,result_dir='./tmp/',gpu_num=1,resolution='256_256') -> None:
+    def __init__(self,result_dir='./tmp/',gpu_num=1,resolution='320_512') -> None:
         self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
         self.download_model()
         
