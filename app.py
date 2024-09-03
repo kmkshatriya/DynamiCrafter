@@ -16,11 +16,15 @@ from pytorch_lightning import seed_everything
 
 
 class Image2Video():
-    def __init__(self, resolution='320_512', gpu_num=1) -> None:
+    def __init__(self, resolution='320_512', is_interp, gpu_num=1) -> None:
         self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
         self.download_model()
+        if is_interp:
+            self.suffix="_Interp"
+        else:
+            self.suffix=""
         
-        ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+'_v1/model.ckpt'
+        ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+self.suffix+'_v1/model.ckpt'
         config_file='configs/inference_'+resolution.split('_')[1]+'_v1.0.yaml'
         config = OmegaConf.load(config_file)
         model_config = config.pop("model", OmegaConf.create())
@@ -94,14 +98,14 @@ class Image2Video():
         return os.path.join(result_dir, out_vid_nm)
     
     def download_model(self):
-        REPO_ID = 'Doubiiu/DynamiCrafter_'+str(self.resolution[1]) if self.resolution[1]!=256 else 'Doubiiu/DynamiCrafter'
+        REPO_ID = 'Doubiiu/DynamiCrafter_'+str(self.resolution[1])+self.suffix if self.resolution[1]!=256 else 'Doubiiu/DynamiCrafter'
         filename_list = ['model.ckpt']
-        if not os.path.exists('./checkpoints/dynamicrafter_'+str(self.resolution[1])+'_v1/'):
-            os.makedirs('./checkpoints/dynamicrafter_'+str(self.resolution[1])+'_v1/')
+        if not os.path.exists('./checkpoints/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/'):
+            os.makedirs('./checkpoints/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/')
         for filename in filename_list:
-            local_file = os.path.join('./checkpoints/dynamicrafter_'+str(self.resolution[1])+'_v1/', filename)
+            local_file = os.path.join('./checkpoints/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/', filename)
             if not os.path.exists(local_file):
-                hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir='./checkpoints/dynamicrafter_'+str(self.resolution[1])+'_v1/', local_dir_use_symlinks=False)
+                hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir='./checkpoints/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/', local_dir_use_symlinks=False)
 
 def get_parser():
     parser = argparse.ArgumentParser()
@@ -110,11 +114,12 @@ def get_parser():
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
     parser.add_argument("--width", type=int, default=512, help="image width, in pixel space")
     parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
+    parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
     return parser
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    i2v = Image2Video(resolution=f"{args.height}_{args.width}")
+    i2v = Image2Video(resolution=f"{args.height}_{args.width}",args.inerp )
     video_path = i2v.get_image(args.image, args.prompt, args.result)
     print('done', video_path)
