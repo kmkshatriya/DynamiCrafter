@@ -118,4 +118,3 @@ if __name__ == "__main__":
     i2v = Image2Video()
     video_path = i2v.get_image(args.image,args.prompt)
     print('done', video_path)
-    return video_path
