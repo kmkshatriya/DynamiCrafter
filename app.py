@@ -109,7 +109,7 @@ class Image2Video():
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
-    parser.add_argument("--prompt", type=int, default="a woman looking out in the rain", help="Text prompt for the video")
+    parser.add_argument("--prompt", type=str, default="a woman looking out in the rain", help="Text prompt for the video")
     return parser
 
 if __name__ == "__main__":
