@@ -2,6 +2,7 @@ import os
 import argparse
 import numpy as np
 from PIL import Image
+from pathlib import Path
 
 import time
 from omegaconf import OmegaConf
@@ -15,13 +16,10 @@ from pytorch_lightning import seed_everything
 
 
 class Image2Video():
-    def __init__(self,result_dir='results/',gpu_num=1,resolution='320_512') -> None:
+    def __init__(self, resolution='320_512', gpu_num=1) -> None:
         self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
         self.download_model()
         
-        self.result_dir = result_dir
-        if not os.path.exists(self.result_dir):
-            os.mkdir(self.result_dir)
         ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+'_v1/model.ckpt'
         config_file='configs/inference_'+resolution.split('_')[1]+'_v1.0.yaml'
         config = OmegaConf.load(config_file)
@@ -38,7 +36,7 @@ class Image2Video():
         self.model_list = model_list
         self.save_fps = 8
 
-    def get_image(self, image_path, prompt, steps=50, cfg_scale=7.5, eta=1.0, fs=3, seed=123):
+    def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=3, seed=123):
         seed_everything(seed)
         transform = transforms.Compose([
             transforms.Resize(min(self.resolution)),
@@ -86,16 +84,14 @@ class Image2Video():
             ## inference
             batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
             ## b,samples,c,t,h,w
-            prompt_str = prompt.replace("/", "_slash_") if "/" in prompt else prompt
-            prompt_str = prompt_str.replace(" ", "_") if " " in prompt else prompt_str
-            prompt_str=prompt_str[:40]
-            if len(prompt_str) == 0:
-                prompt_str = 'empty_prompt'
 
-        save_videos(batch_samples, self.result_dir, filenames=[prompt_str], fps=self.save_fps)
-        print(f"Saved in {prompt_str}. Time used: {(time.time() - start):.2f} seconds")
+            out_vid_nm = Path(result).stem
+            result_dir = Path(result).parent
+
+        save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=self.save_fps)
+        print(f"Saved as {out_vid_nm}. Time used: {(time.time() - start):.2f} seconds")
         model = model.cpu()
-        return os.path.join(self.result_dir, f"{prompt_str}.mp4")
+        return os.path.join(result_dir, out_vid_nm)
     
     def download_model(self):
         REPO_ID = 'Doubiiu/DynamiCrafter_'+str(self.resolution[1]) if self.resolution[1]!=256 else 'Doubiiu/DynamiCrafter'
@@ -111,6 +107,7 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
     parser.add_argument("--prompt", type=str, default="a woman looking out in the rain", help="Text prompt for the video")
+    parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
     parser.add_argument("--width", type=str, default=512, help="image width, in pixel space")
     parser.add_argument("--height", type=str, default=320, help="image height, in pixel space")
     return parser
@@ -119,5 +116,5 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     i2v = Image2Video(resolution=f"{args.height}_{args.width}")
-    video_path = i2v.get_image(args.image,args.prompt)
+    video_path = i2v.get_image(args.image, args.prompt, args.result)
     print('done', video_path)
