@@ -1,6 +1,7 @@
 import os
 import argparse
 import numpy as np
+from PIL import Image
 
 import time
 from omegaconf import OmegaConf
@@ -110,11 +111,13 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
     parser.add_argument("--prompt", type=str, default="a woman looking out in the rain", help="Text prompt for the video")
+    parser.add_argument("--width", type=str, default=512, help="image width, in pixel space")
+    parser.add_argument("--height", type=str, default=320, help="image height, in pixel space")
     return parser
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    i2v = Image2Video()
+    i2v = Image2Video(resolution=f"{args.height}_{args.width}")
     video_path = i2v.get_image(args.image,args.prompt)
     print('done', video_path)
