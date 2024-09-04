@@ -127,11 +127,12 @@ def get_parser():
     parser.add_argument("--width", type=int, default=512, help="image width, in pixel space")
     parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
+    parser.add_argument('--gpus', type=int, default=1, help="No of gpus to use")
     return parser
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    i2v = Image2Video(f"{args.height}_{args.width}", args.interp )
+    i2v = Image2Video(f"{args.height}_{args.width}", args.interp, args.gpus)
     video_path = i2v.get_image(args.image, args.prompt, args.result)
     print('done', video_path)
