@@ -23,9 +23,9 @@ class Image2Video():
             self.suffix="_Interp"
         
         self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
-        self.download_model()
-  
-        # ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+self.suffix+'_v1/model.ckpt'
+        
+        # self.download_model()
+          # ckpt_path='checkpoints/dynamicrafter_'+resolution.split('_')[1]+self.suffix+'_v1/model.ckpt'
         ckpt_path='checkpoints/dynamicrafter_512_interp_fp16_pruned.safetensors'
         # ckpt_path='checkpoints/dynamicrafter_512_fp16_pruned.safetensors'        
         # ckpt_path='checkpoints/dynamicrafter_1024_fp16_pruned.safetensors'  
