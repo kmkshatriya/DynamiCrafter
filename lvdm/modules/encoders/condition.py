@@ -312,12 +312,29 @@ class FrozenOpenCLIPImageEmbedderV2(AbstractEncoder):
     """
     Uses the OpenCLIP vision transformer encoder for images
     """
-
+    #-----k----------------
+    # def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda",
+    #              freeze=True, layer="pooled", antialias=True):
+    #     super().__init__()
+    #     model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'),
+    #                                                         pretrained=version, )
     def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda",
-                 freeze=True, layer="pooled", antialias=True):
+                 freeze=True, layer="pooled", antialias=True, 
+                 local_pth =  "checkpoints/clip/open_clip_pytorch_model.bin"):
         super().__init__()
-        model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'),
-                                                            pretrained=version, )
+        if local_pth:
+            model, _, _ = open_clip.create_model_and_transforms(
+                model_name=arch, 
+                device=torch.device(device), 
+                pretrained=local_pth
+            )
+        else:
+            model, _, _ = open_clip.create_model_and_transforms(
+                model_name=arch, 
+                device=torch.device('cpu'),
+                pretrained=version
+            )
+        #-----k----------------                                                            
         del model.transformer
         self.model = model
         self.device = device
