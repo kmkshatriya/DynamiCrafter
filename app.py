@@ -38,7 +38,8 @@ class Image2Video():
         model_list = []
         for gpu_id in range(gpu_num):
             model = instantiate_from_config(model_config)
-            # model = model.cuda(gpu_id)
+            model = model.cuda(gpu_id)
+            model.perframe_ae = True if not self.resolution[1] ==256 else False
             assert os.path.exists(ckpt_path), "Error: checkpoint Not Found!"
             model = load_model_checkpoint(model, ckpt_path)
             model.eval()
