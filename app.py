@@ -47,7 +47,7 @@ class Image2Video():
         self.save_fps = 8
 
     def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, seed=123):
-        res=resolution.split('_')[1]
+        res=self.resolution[1]
         if res==256:
             fs=3
         elif res==512:
