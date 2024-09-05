@@ -68,16 +68,9 @@ class Image2Video():
 
         if steps > 60:
             steps = 60 
-<<<<<<< HEAD
 
         model = self.model
 
-=======
-
-        model = self.model
-
-        # Ensure the model is on the proper device
->>>>>>> 737617802ac51396df563049be4230eb9a42c05e
         model = model.cuda()
         
         batch_size = 1
@@ -129,12 +122,8 @@ class Image2Video():
         print(f"Saved as {out_vid_nm}. Time used: {(time.time() - start):.2f} seconds")
         model = model.cpu()
         return os.path.join(result_dir, out_vid_nm)
-<<<<<<< HEAD
 
 
-=======
-    
->>>>>>> 737617802ac51396df563049be4230eb9a42c05e
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
@@ -144,10 +133,7 @@ def get_parser():
     parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
     parser.add_argument("--seed", type=int, default=42, help="Seed value for video generation")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
-<<<<<<< HEAD
     # parser.add_argument('--gpus', type=int, default=1, help="No of gpus to use")
-=======
->>>>>>> 737617802ac51396df563049be4230eb9a42c05e
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
 
     return parser
