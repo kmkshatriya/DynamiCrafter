@@ -181,13 +181,21 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
         "penultimate"
     ]
 
-    def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda", max_length=77,
-                 freeze=True, layer="last", local_pth =  "checkpoints/clip/open_clip_pytorch_model.bin"):
+
+        #-----k----------------
+    # def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda", max_length=77, freeze=True, layer="last"):
+        # super().__init__()
+        # assert layer in self.LAYERS        
+        # model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'), pretrained=version)
+    def __init__(self, arch="ViT-H-14",
+                 version="laion2b_s32b_b79k",
+                 device="cuda",
+                 max_length=77,
+                 freeze=True, 
+                 layer="last", 
+                 local_pth =  "checkpoints/clip/open_clip_pytorch_model.bin"):
         super().__init__()
         assert layer in self.LAYERS
-        #-----k----------------
-        # model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'), pretrained=version)
-
         if local_pth:
             model, _, _ = open_clip.create_model_and_transforms(
                 model_name=arch, 
@@ -255,11 +263,32 @@ class FrozenOpenCLIPImageEmbedder(AbstractEncoder):
     Uses the OpenCLIP vision transformer encoder for images
     """
 
-    def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda", max_length=77,
-                 freeze=True, layer="pooled", antialias=True, ucg_rate=0.):
+    # def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda", max_length=77,
+    #              freeze=True, layer="pooled", antialias=True, ucg_rate=0.):
+    #     super().__init__()
+    #     model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'),
+    #                                                         pretrained=version, )
+    def __init__(self, arch="ViT-H-14", 
+                 version="laion2b_s32b_b79k", 
+                 device="cuda", 
+                 max_length=77,
+                 freeze=True, layer="pooled", 
+                 antialias=True, ucg_rate=0., 
+                 local_pth =  "checkpoints/clip/open_clip_pytorch_model.bin"):
         super().__init__()
-        model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'),
-                                                            pretrained=version, )
+        if local_pth:
+            model, _, _ = open_clip.create_model_and_transforms(
+                model_name=arch, 
+                device=torch.device(device), 
+                pretrained=local_pth
+            )
+        else:
+            model, _, _ = open_clip.create_model_and_transforms(
+                model_name=arch, 
+                device=torch.device('cpu'),
+                pretrained=version
+            )
+        #-----k----------------                                                               
         del model.transformer
         self.model = model
         # self.mapper = torch.nn.Linear(1280, 1024)
@@ -318,8 +347,12 @@ class FrozenOpenCLIPImageEmbedderV2(AbstractEncoder):
     #     super().__init__()
     #     model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'),
     #                                                         pretrained=version, )
-    def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda",
-                 freeze=True, layer="pooled", antialias=True, 
+    def __init__(self, arch="ViT-H-14", 
+                 version="laion2b_s32b_b79k", 
+                 device="cuda",
+                 freeze=True, 
+                 layer="pooled", 
+                 antialias=True, 
                  local_pth =  "checkpoints/clip/open_clip_pytorch_model.bin"):
         super().__init__()
         if local_pth:
