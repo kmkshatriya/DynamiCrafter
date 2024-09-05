@@ -46,7 +46,15 @@ class Image2Video():
         self.model_list = model_list
         self.save_fps = 8
 
-    def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=3, seed=123):
+    def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, seed=123):
+        res=resolution.split('_')[1]
+        if res==256:
+            fs=3
+        elif res==512:
+            fs=24
+        elif res==1024:
+            fs=10
+
         seed_everything(seed)
         transform = transforms.Compose([
             transforms.Resize(min(self.resolution)),
@@ -127,6 +135,7 @@ def get_parser():
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
     parser.add_argument("--width", type=int, default=512, help="image width, in pixel space")
     parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
+    parser.add_argument("--seed", type=int, default=42, help="Seed value for video generation")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
     parser.add_argument('--gpus', type=int, default=1, help="No of gpus to use")
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
@@ -137,5 +146,5 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     i2v = Image2Video(f"{args.height}_{args.width}", args.interp, args.gpus, args.model)
-    video_path = i2v.get_image(args.image, args.prompt, args.result)
+    video_path = i2v.get_image(args.image, args.prompt, args.result, seed=args.seed)
     print('done', video_path)
