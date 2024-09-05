@@ -34,21 +34,18 @@ class Image2Video():
         config = OmegaConf.load(config_file)
         model_config = config.pop("model", OmegaConf.create())
         model_config['params']['unet_config']['params']['use_checkpoint']=False   
-
         model = instantiate_from_config(model_config)
-
+        
         if torch.cuda.device_count() > 1 and gpu_num > 1:
             print(f"Using {torch.cuda.device_count()} GPUs!")
             model = torch.nn.DataParallel(model)
-
 
         model = model.cuda()
         model.perframe_ae = True if not self.resolution[1] ==256 else False
         assert os.path.exists(ckpt_path), "Error: checkpoint Not Found!"
         model = load_model_checkpoint(model, ckpt_path)
         model.eval()
-        model_list.append(model)
-
+        self.model = model
         self.save_fps = 8
 
     def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, seed=123):
@@ -71,10 +68,16 @@ class Image2Video():
 
         if steps > 60:
             steps = 60 
+<<<<<<< HEAD
+
+        model = self.model
+
+=======
 
         model = self.model
 
         # Ensure the model is on the proper device
+>>>>>>> 737617802ac51396df563049be4230eb9a42c05e
         model = model.cuda()
         
         batch_size = 1
@@ -126,7 +129,12 @@ class Image2Video():
         print(f"Saved as {out_vid_nm}. Time used: {(time.time() - start):.2f} seconds")
         model = model.cpu()
         return os.path.join(result_dir, out_vid_nm)
+<<<<<<< HEAD
+
+
+=======
     
+>>>>>>> 737617802ac51396df563049be4230eb9a42c05e
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
@@ -136,6 +144,10 @@ def get_parser():
     parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
     parser.add_argument("--seed", type=int, default=42, help="Seed value for video generation")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
+<<<<<<< HEAD
+    # parser.add_argument('--gpus', type=int, default=1, help="No of gpus to use")
+=======
+>>>>>>> 737617802ac51396df563049be4230eb9a42c05e
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
 
     return parser
