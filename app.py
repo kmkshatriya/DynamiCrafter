@@ -3,7 +3,7 @@ import sys
 import argparse
 import time
 import torch
-import torchvision 
+import torchvision
 from pathlib import Path
 import torchvision.transforms as transforms
 from huggingface_hub import hf_hub_download
@@ -21,16 +21,26 @@ from funcs import (
 
 
 # Function to run inference and generate the video
-def infer(image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, resolution=256, ckpt_dir="checkpoints"):
+def infer(image_path, prompt, result, resolution=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
     if not fs:
         if resolution==256:
             fs=3
+            height=256
+            width=256
         elif resolution==512:
             fs=24
+            height=320
+            width=512            
         elif resolution==1024:
             fs=10
-    ckpt_path = f'{ckpt_dir}/dynamicrafter_{resolution}_v1/model.ckpt'
-    config_file = f'configs/inference_{resolution}_v1.0.yaml'
+            height=576
+            width=1024            
+    suffix=""
+    if interp:
+        suffix="_Interp"
+    # Load the model
+    ckpt_path = f'{ckpt_dir}/dynamicrafter_{width}{suffix}_v1/model.ckpt'
+    config_file = f'configs/inference_{width}_v1.0.yaml'
     config = OmegaConf.load(config_file)
     model_config = config.pop("model", OmegaConf.create())
     model_config['params']['unet_config']['params']['use_checkpoint'] = False
@@ -39,43 +49,57 @@ def infer(image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=0, se
     model = load_model_checkpoint(model, ckpt_path)
     model.eval()
     model = model.cuda()
+
+    # Set the frames per second (FPS) for the output video
     save_fps = 8
 
+    # Set the seed for reproducibility
     seed_everything(seed)
+
+    # Define the image transformation pipeline
     transform = transforms.Compose([
-        transforms.Resize(resolution),
-        transforms.CenterCrop(resolution),
+        transforms.Resize((height, width)),
+        transforms.CenterCrop((height, width)),
     ])
+
     torch.cuda.empty_cache()
     print('start:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-    
-    # Ensure steps don't exceed the limit
+
+    # Ensure the number of steps does not exceed 60
     if steps > 60:
         steps = 60 
 
+    # Model parameters
     batch_size = 1
     channels = model.model.diffusion_model.out_channels
     frames = model.temporal_length
-    h, w = resolution // 8, resolution // 8
+    h, w = height // 8, width // 8
     noise_shape = [batch_size, channels, frames, h, w]
 
-    # Load image and convert it into a tensor
+    # Load and preprocess the image
     img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
-    img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize
+    img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize to [-1, 1]
 
-    image_tensor_resized = transform(img_tensor)  # Resize and crop
+    # Resize and crop the image
+    image_tensor_resized = transform(img_tensor)  # Resize and crop to the desired resolution
     videos = image_tensor_resized.unsqueeze(0)  # Add batch dimension
 
-    # Get latent representation of the image
+    # Get the latent representation of the image
     z = get_latent_z(model, videos.unsqueeze(2))  # Add temporal dimension
 
-    img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
+    # If interpolation is enabled
+    if interp:
+        img_tensor_repeat = torch.zeros_like(repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames))
+        img_tensor_repeat[:, :, :1, :, :] = z  # Set the first frame
+        img_tensor_repeat[:, :, -1:, :, :] = z  # Set the last frame
+    else:
+        img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
 
     # Get text embedding for the prompt
     text_emb = model.get_learned_conditioning([prompt])
 
     # Image conditioning
-    cond_images = model.embedder(img_tensor.unsqueeze(0))  # Embedding for image
+    cond_images = model.embedder(img_tensor.unsqueeze(0))  # Get image embedding
     img_emb = model.image_proj_model(cond_images)
 
     # Concatenate the image and text embeddings
@@ -91,8 +115,10 @@ def infer(image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=0, se
     out_vid_nm = Path(result).stem
     result_dir = Path(result).parent
     save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=save_fps)
-    model = model.cpu()
+
+    model = model.cpu()  # Move model back to CPU to free GPU memory
     return result
+
 
 # Main function to parse input arguments and run inference
 def main():
@@ -108,11 +134,12 @@ def main():
     parser.add_argument('--fs', type=int, default=0, help='Motion magnitude (default: 3)')
     parser.add_argument('--seed', type=int, default=123, help='Random seed (default: 123)')
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
+    parser.add_argument('--interp', action='store_true', help="Enable interpolation between frames")
 
     args = parser.parse_args()
 
     # Call the inference function
-    video_path = infer(args.image, args.prompt, args.result, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.resolution, args.model)
+    video_path = infer(args.image, args.prompt, args.result, args.resolution, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
     print(f"Video generated: {video_path}")
 
 if __name__ == "__main__":
