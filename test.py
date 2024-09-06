@@ -3,6 +3,7 @@ import sys
 import argparse
 import time
 import torch
+import torchvision  # <-- Add this line
 import torchvision.transforms as transforms
 from huggingface_hub import hf_hub_download
 from pytorch_lightning import seed_everything
