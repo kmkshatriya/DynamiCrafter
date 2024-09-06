@@ -21,7 +21,7 @@ from funcs import (
 
 
 # Function to run inference and generate the video
-def infer(image1, prompt, image2=None, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
+def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, image2=None, ckpt_dir="checkpoints"):
     if not fs:
         if width==256:
             fs=3
@@ -155,7 +155,7 @@ def main():
     args = parser.parse_args()
 
     # Call the inference function
-    video_path = infer(args.image, args.prompt, args.image2, args.result, args.width, args.height, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
+    video_path = infer(args.image, args.prompt, args.result, args.width, args.height, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.image2, args.model)
 
     print(f"Video generated: {video_path}")
 
