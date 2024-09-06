@@ -19,22 +19,22 @@ from funcs import (
     save_videos
 )
 
-
 # Function to run inference and generate the video
 def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
     if not fs:
-        if width==256:
-            fs=3
-        elif width==512:
-            fs=24         
-        elif width==1024:
-            fs=10
+        if width == 256:
+            fs = 3
+        elif width == 512:
+            fs = 24         
+        elif width == 1024:
+            fs = 10
 
-    suffix=""
+    suffix = ""
     if interp:
-        suffix="_Interp"
-        height=320
-        width=512        
+        suffix = "_Interp"
+        height = 320
+        width = 512        
+
     # Load the model
     ckpt_path = f'{ckpt_dir}/dynamicrafter_{width}{suffix}_v1/model.ckpt'
     config_file = f'configs/inference_{width}_v1.0.yaml'
@@ -45,6 +45,13 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     assert os.path.exists(ckpt_path), "Error: checkpoint Not Found!"
     model = load_model_checkpoint(model, ckpt_path)
     model.eval()
+
+    # Use DataParallel to utilize multiple GPUs
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs!")
+        model = torch.nn.DataParallel(model)
+
+    # Move the model to GPU(s)
     model = model.cuda()
 
     # Set the frames per second (FPS) for the output video
@@ -68,15 +75,15 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
 
     # Model parameters
     batch_size = 1
-    channels = model.model.diffusion_model.out_channels
-    frames = model.temporal_length
+    channels = model.module.model.diffusion_model.out_channels if hasattr(model, 'module') else model.model.diffusion_model.out_channels
+    frames = model.module.temporal_length if hasattr(model, 'module') else model.temporal_length
     h, w = height // 8, width // 8
     noise_shape = [batch_size, channels, frames, h, w]
 
     # Load and preprocess the image
     img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
     img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize to [-1, 1]
-   
+
     if img_tensor.size(0) != 3:
         img_tensor = img_tensor[:3, :, :]
 
@@ -96,11 +103,11 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
         img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
 
     # Get text embedding for the prompt
-    text_emb = model.get_learned_conditioning([prompt])
+    text_emb = model.module.get_learned_conditioning([prompt]) if hasattr(model, 'module') else model.get_learned_conditioning([prompt])
 
     # Image conditioning
-    cond_images = model.embedder(img_tensor.unsqueeze(0))  # Get image embedding
-    img_emb = model.image_proj_model(cond_images)
+    cond_images = model.module.embedder(img_tensor.unsqueeze(0)) if hasattr(model, 'module') else model.embedder(img_tensor.unsqueeze(0))  # Get image embedding
+    img_emb = model.module.image_proj_model(cond_images) if hasattr(model, 'module') else model.image_proj_model(cond_images)
 
     # Concatenate the image and text embeddings
     imtext_cond = torch.cat([text_emb, img_emb], dim=1)
