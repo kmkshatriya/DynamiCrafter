@@ -34,10 +34,12 @@ def infer(image_path, prompt, result, resolution=256, steps=50, cfg_scale=7.5, e
         elif resolution==1024:
             fs=10
             height=576
-            width=1024            
+            width=1024
     suffix=""
     if interp:
         suffix="_Interp"
+        height=320
+        width=512        
     # Load the model
     ckpt_path = f'{ckpt_dir}/dynamicrafter_{width}{suffix}_v1/model.ckpt'
     config_file = f'configs/inference_{width}_v1.0.yaml'
