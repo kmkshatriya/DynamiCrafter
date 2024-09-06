@@ -47,10 +47,6 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
     model.eval()
     model = model.cuda()
 
-    if width==256:
-        width = 384
-        height= 256
-
     # Set the frames per second (FPS) for the output video
     save_fps = 8
 
