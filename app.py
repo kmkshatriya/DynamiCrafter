@@ -21,20 +21,15 @@ from funcs import (
 
 
 # Function to run inference and generate the video
-def infer(image_path, prompt, result, resolution=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
+def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
     if not fs:
-        if resolution==256:
+        if width==256:
             fs=3
-            height=256
-            width=256
-        elif resolution==512:
-            fs=24
-            height=320
-            width=512            
-        elif resolution==1024:
+        elif width==512:
+            fs=24         
+        elif width==1024:
             fs=10
-            height=576
-            width=1024
+
     suffix=""
     if interp:
         suffix="_Interp"
@@ -129,7 +124,8 @@ def main():
     parser.add_argument('--prompt', type=str, required=True, help='Prompt describing the animation')
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
 
-    parser.add_argument('--resolution', type=int, default=256, help='Resolution of the output video')
+    parser.add_argument('--width', type=int, default=512, help='Width of the output video (default: 512)')
+    parser.add_argument('--height', type=int, default=512, help='Height of the output video (default: 512)')
     parser.add_argument('--steps', type=int, default=50, help='Number of sampling steps (max 60)')
     parser.add_argument('--cfg_scale', type=float, default=7.5, help='CFG scale (default: 7.5)')
     parser.add_argument('--eta', type=float, default=1.0, help='ETA for DDIM sampling (default: 1.0)')
@@ -141,7 +137,8 @@ def main():
     args = parser.parse_args()
 
     # Call the inference function
-    video_path = infer(args.image, args.prompt, args.result, args.resolution, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
+    video_path = infer(args.image, args.prompt, args.result, args.width, args.height, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
+
     print(f"Video generated: {video_path}")
 
 if __name__ == "__main__":
