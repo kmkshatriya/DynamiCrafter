@@ -76,6 +76,9 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     # Load and preprocess the image
     img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
     img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize to [-1, 1]
+   
+    if img_tensor.size(0) != 3:
+        img_tensor = img_tensor[:3, :, :]
 
     # Resize and crop the image
     image_tensor_resized = transform(img_tensor)  # Resize and crop to the desired resolution
