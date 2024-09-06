@@ -92,7 +92,7 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     videos = image_tensor_resized.unsqueeze(0)  # Add batch dimension
 
     # Get the latent representation of the image
-    z = get_latent_z(model, videos.unsqueeze(2))  # Add temporal dimension
+    z = model.module.encode_first_stage(videos.unsqueeze(2)) if hasattr(model, 'module') else model.encode_first_stage(videos.unsqueeze(2))
 
     # If interpolation is enabled
     if interp:
