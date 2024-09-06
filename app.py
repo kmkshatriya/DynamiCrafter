@@ -21,7 +21,7 @@ from funcs import (
 
 
 # Function to run inference and generate the video
-def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
+def infer(image1, prompt, image2=None, result, width=256, height=256, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, interp=False, ckpt_dir="checkpoints"):
     if not fs:
         if width==256:
             fs=3
@@ -74,7 +74,7 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     noise_shape = [batch_size, channels, frames, h, w]
 
     # Load and preprocess the image
-    img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
+    img_tensor = torchvision.io.read_image(image1).float().to(model.device)  # Assuming 3xHxW image
     img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize to [-1, 1]
    
     if img_tensor.size(0) != 3:
@@ -87,11 +87,26 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     # Get the latent representation of the image
     z = get_latent_z(model, videos.unsqueeze(2))  # Add temporal dimension
 
+    if image2 is not None:
+        img_tensor2 = torchvision.io.read_image(image2).float().to(model.device)  # Assuming 3xHxW image
+        img_tensor2 = (img_tensor2 / 255. - 0.5) * 2
+
+        if img_tensor2.size(0) != 3:
+            img_tensor2 = img_tensor2[:3, :, :]
+
+        image_tensor_resized2 = transform(img_tensor2) #3,h,w
+        videos2 = image_tensor_resized2.unsqueeze(0) # bchw
+        
+        z2 = get_latent_z(model, videos2.unsqueeze(2)) #bc,1,hw
+        
     # If interpolation is enabled
     if interp:
         img_tensor_repeat = torch.zeros_like(repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames))
         img_tensor_repeat[:, :, :1, :, :] = z  # Set the first frame
-        img_tensor_repeat[:, :, -1:, :, :] = z  # Set the last frame
+        if image2 is not None:
+            img_tensor_repeat[:, :, -1:, :, :] = z2
+        else:
+            img_tensor_repeat[:, :, -1:, :, :] = z  # Set the last frame
     else:
         img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
 
@@ -123,10 +138,11 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
 # Main function to parse input arguments and run inference
 def main():
     parser = argparse.ArgumentParser(description="Image to Video Animation using DynamiCrafter")
-    parser.add_argument('--image', type=str, required=True, help='Path to the input image')
+    parser.add_argument('--image', type=str, required=True, help='Path to the start image')
     parser.add_argument('--prompt', type=str, required=True, help='Prompt describing the animation')
-    parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
 
+    parser.add_argument('--image2', type=str, default=None, help='Path to the end image')
+    parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
     parser.add_argument('--width', type=int, default=512, help='Width of the output video (default: 512)')
     parser.add_argument('--height', type=int, default=512, help='Height of the output video (default: 512)')
     parser.add_argument('--steps', type=int, default=50, help='Number of sampling steps (max 60)')
@@ -140,7 +156,7 @@ def main():
     args = parser.parse_args()
 
     # Call the inference function
-    video_path = infer(args.image, args.prompt, args.result, args.width, args.height, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
+    video_path = infer(args.image, args.prompt, args.image2, args.result, args.width, args.height, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.interp, args.model)
 
     print(f"Video generated: {video_path}")
 
