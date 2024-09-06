@@ -81,7 +81,7 @@ def infer(image_path, prompt, result, width=256, height=256, steps=50, cfg_scale
     noise_shape = [batch_size, channels, frames, h, w]
 
     # Load and preprocess the image
-    img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
+    img_tensor = torchvision.io.read_image(image_path).float().to(model.module.device if hasattr(model, 'module') else model.device)  # Assuming 3xHxW image
     img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize to [-1, 1]
 
     if img_tensor.size(0) != 3:
