@@ -140,8 +140,6 @@ def main():
     parser = argparse.ArgumentParser(description="Image to Video Animation using DynamiCrafter")
     parser.add_argument('--image', type=str, required=True, help='Path to the start image')
     parser.add_argument('--prompt', type=str, required=True, help='Prompt describing the animation')
-
-    parser.add_argument('--image2', type=str, default=None, help='Path to the end image')
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
     parser.add_argument('--width', type=int, default=512, help='Width of the output video (default: 512)')
     parser.add_argument('--height', type=int, default=512, help='Height of the output video (default: 512)')
@@ -152,6 +150,7 @@ def main():
     parser.add_argument('--seed', type=int, default=123, help='Random seed (default: 123)')
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation between frames")
+    parser.add_argument('--image2', type=str, default=None, help='Path to the end image')
 
     args = parser.parse_args()
 
