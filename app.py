@@ -23,11 +23,11 @@ from funcs import (
 # Function to run inference and generate the video
 def infer(image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, resolution=256, ckpt_dir="checkpoints"):
     if not fs:
-        if res==256:
+        if resolution==256:
             fs=3
-        elif res==512:
+        elif resolution==512:
             fs=24
-        elif res==1024:
+        elif resolution==1024:
             fs=10
     ckpt_path = f'{ckpt_dir}/dynamicrafter_{resolution}_v1/model.ckpt'
     config_file = f'configs/inference_{resolution}_v1.0.yaml'
