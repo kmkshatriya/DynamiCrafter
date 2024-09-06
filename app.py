@@ -148,9 +148,9 @@ def main():
     parser.add_argument('--eta', type=float, default=1.0, help='ETA for DDIM sampling (default: 1.0)')
     parser.add_argument('--fs', type=int, default=0, help='Motion magnitude (default: 3)')
     parser.add_argument('--seed', type=int, default=123, help='Random seed (default: 123)')
-    parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
     parser.add_argument('--interp', action='store_true', help="Enable interpolation between frames")
     parser.add_argument('--image2', type=str, default=None, help='Path to the end image')
+    parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
 
     args = parser.parse_args()
 
