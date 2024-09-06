@@ -52,7 +52,7 @@ class Image2Video():
         if res==256:
             fs=3
         elif res==512:
-            fs=3#24
+            fs=24
         elif res==1024:
             fs=10
 
