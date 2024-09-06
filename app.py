@@ -1,151 +1,119 @@
 import os
+import sys
 import argparse
-import numpy as np
-from PIL import Image
-from pathlib import Path
-
 import time
-from omegaconf import OmegaConf
 import torch
-from scripts.evaluation.funcs import load_model_checkpoint, save_videos, batch_ddim_sampling, get_latent_z
-from utils.utils import instantiate_from_config
-from huggingface_hub import hf_hub_download
-from einops import repeat
+import torchvision 
+from pathlib import Path
 import torchvision.transforms as transforms
+from huggingface_hub import hf_hub_download
 from pytorch_lightning import seed_everything
+from einops import repeat
+from omegaconf import OmegaConf
+from utils.utils import instantiate_from_config
+sys.path.insert(0, "scripts/evaluation")
+from funcs import (
+    batch_ddim_sampling,
+    load_model_checkpoint,
+    get_latent_z,
+    save_videos
+)
 
 
-class Image2Video():
-    def __init__(self, resolution='320_512', is_interp=False, gpu_num=1, ckpt_dir="checkpoints") -> None:
-        self.suffix=""
-        self.is_interp=is_interp
-        self.ckpt_dir=ckpt_dir
-        if is_interp:
-            self.suffix="_Interp"
-        
-        self.resolution = (int(resolution.split('_')[0]), int(resolution.split('_')[1])) #hw
-
-        self.download_model()
-        ckpt_path=ckpt_dir+'/dynamicrafter_'+resolution.split('_')[1]+self.suffix+'_v1/model.ckpt'
-        # ckpt_path=f'{ckpt_dir}/dynamicrafter_512_interp_fp16_pruned.safetensors'
-        # ckpt_path=f'{ckpt_dir}/dynamicrafter_512_fp16_pruned.safetensors'        
-        # ckpt_path=f'{ckpt_dir}/dynamicrafter_1024_fp16_pruned.safetensors'  
-
-        config_file='configs/inference_'+resolution.split('_')[1]+'_v1.0.yaml'
-        config = OmegaConf.load(config_file)
-        model_config = config.pop("model", OmegaConf.create())
-        model_config['params']['unet_config']['params']['use_checkpoint']=False   
-        model_list = []
-        for gpu_id in range(gpu_num):
-            model = instantiate_from_config(model_config)
-            model = model.cuda(gpu_id)
-            model.perframe_ae = True if not self.resolution[1] ==256 else False
-            assert os.path.exists(ckpt_path), "Error: checkpoint Not Found!"
-            model = load_model_checkpoint(model, ckpt_path)
-            model.eval()
-            model_list.append(model)
-        self.model_list = model_list
-        self.save_fps = 8
-
-    def get_image(self, image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, seed=123):
-        res=self.resolution[1]
+# Function to run inference and generate the video
+def infer(image_path, prompt, result, steps=50, cfg_scale=7.5, eta=1.0, fs=0, seed=123, resolution=256, ckpt_dir="checkpoints"):
+    if not fs:
         if res==256:
             fs=3
         elif res==512:
             fs=24
         elif res==1024:
             fs=10
+    ckpt_path = f'{ckpt_dir}/dynamicrafter_{resolution}_v1/model.ckpt'
+    config_file = f'configs/inference_{resolution}_v1.0.yaml'
+    config = OmegaConf.load(config_file)
+    model_config = config.pop("model", OmegaConf.create())
+    model_config['params']['unet_config']['params']['use_checkpoint'] = False
+    model = instantiate_from_config(model_config)
+    assert os.path.exists(ckpt_path), "Error: checkpoint Not Found!"
+    model = load_model_checkpoint(model, ckpt_path)
+    model.eval()
+    model = model.cuda()
+    save_fps = 8
 
-        seed_everything(seed)
-        transform = transforms.Compose([
-            transforms.Resize(min(self.resolution)),
-            transforms.CenterCrop(self.resolution),
-            ])
-        torch.cuda.empty_cache()
-        print('start:', prompt, time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())))
-        start = time.time()
-        gpu_id=0
-        if steps > 60:
-            steps = 60 
-        model = self.model_list[gpu_id]
-        model = model.cuda()
-        batch_size=1
-        channels = model.model.diffusion_model.out_channels
-        frames = model.temporal_length
-        h, w = self.resolution[0] // 8, self.resolution[1] // 8
-        noise_shape = [batch_size, channels, frames, h, w]
-
-        # text cond
-        with torch.no_grad(), torch.cuda.amp.autocast():
-            text_emb = model.get_learned_conditioning([prompt])
-
-            # img cond
-            image = Image.open(image_path).convert('RGB')
-            image = np.array(image)
-            img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
-            img_tensor = (img_tensor / 255. - 0.5) * 2
-
-            image_tensor_resized = transform(img_tensor) #3,h,w
-            videos = image_tensor_resized.unsqueeze(0) # bchw
-            
-            z = get_latent_z(model, videos.unsqueeze(2)) #bc,1,hw
-            
-            img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
-
-            if self.is_interp:
-                img_tensor_repeat = torch.zeros_like(img_tensor_repeat)
-                img_tensor_repeat[:,:,:1,:,:] = z
-                img_tensor_repeat[:,:,-1:,:,:] = z
-
-            cond_images = model.embedder(img_tensor.unsqueeze(0)) ## blc
-            img_emb = model.image_proj_model(cond_images)
-
-            imtext_cond = torch.cat([text_emb, img_emb], dim=1)
-
-            fs = torch.tensor([fs], dtype=torch.long, device=model.device)
-            cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
-            
-            ## inference
-            batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
-            ## b,samples,c,t,h,w
-            if self.is_interp:
-                batch_samples = batch_samples[:,:,:,:-1,...]
-
-            out_vid_nm = Path(result).stem
-            result_dir = Path(result).parent
-
-        save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=self.save_fps)
-        print(f"Saved as {out_vid_nm}. Time used: {(time.time() - start):.2f} seconds")
-        model = model.cpu()
-        return os.path.join(result_dir, out_vid_nm)
+    seed_everything(seed)
+    transform = transforms.Compose([
+        transforms.Resize(resolution),
+        transforms.CenterCrop(resolution),
+    ])
+    torch.cuda.empty_cache()
+    print('start:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
     
-    def download_model(self):
-        REPO_ID = 'Doubiiu/DynamiCrafter_'+str(self.resolution[1])+self.suffix if self.resolution[1]!=256 else 'Doubiiu/DynamiCrafter'
-        filename_list = ['model.ckpt']
-        if not os.path.exists('./'+self.ckpt_dir+'/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/'):
-            os.makedirs('./'+self.ckpt_dir+'/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/')
-        for filename in filename_list:
-            local_file = os.path.join('./'+self.ckpt_dir+'/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/', filename)
-            if not os.path.exists(local_file):
-                hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir='./'+self.ckpt_dir+'/dynamicrafter_'+str(self.resolution[1])+self.suffix+'_v1/', local_dir_use_symlinks=False)
+    # Ensure steps don't exceed the limit
+    if steps > 60:
+        steps = 60 
 
-def get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--image", type=str, default="prompts/512/girl08.png", help="Path to input image")
-    parser.add_argument("--prompt", type=str, default="a woman looking out in the rain", help="Text prompt for the video")
+    batch_size = 1
+    channels = model.model.diffusion_model.out_channels
+    frames = model.temporal_length
+    h, w = resolution // 8, resolution // 8
+    noise_shape = [batch_size, channels, frames, h, w]
+
+    # Load image and convert it into a tensor
+    img_tensor = torchvision.io.read_image(image_path).float().to(model.device)  # Assuming 3xHxW image
+    img_tensor = (img_tensor / 255. - 0.5) * 2  # Normalize
+
+    image_tensor_resized = transform(img_tensor)  # Resize and crop
+    videos = image_tensor_resized.unsqueeze(0)  # Add batch dimension
+
+    # Get latent representation of the image
+    z = get_latent_z(model, videos.unsqueeze(2))  # Add temporal dimension
+
+    img_tensor_repeat = repeat(z, 'b c t h w -> b c (repeat t) h w', repeat=frames)
+
+    # Get text embedding for the prompt
+    text_emb = model.get_learned_conditioning([prompt])
+
+    # Image conditioning
+    cond_images = model.embedder(img_tensor.unsqueeze(0))  # Embedding for image
+    img_emb = model.image_proj_model(cond_images)
+
+    # Concatenate the image and text embeddings
+    imtext_cond = torch.cat([text_emb, img_emb], dim=1)
+
+    fs = torch.tensor([fs], dtype=torch.long, device=model.device)
+    cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
+
+    # Run inference
+    batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
+
+    # Save the generated video
+    out_vid_nm = Path(result).stem
+    result_dir = Path(result).parent
+    save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=save_fps)
+    model = model.cpu()
+    return result
+
+# Main function to parse input arguments and run inference
+def main():
+    parser = argparse.ArgumentParser(description="Image to Video Animation using DynamiCrafter")
+    parser.add_argument('--image', type=str, required=True, help='Path to the input image')
+    parser.add_argument('--prompt', type=str, required=True, help='Prompt describing the animation')
     parser.add_argument("--result", type=str, default="results/video.mp4", help="Path to output video")
-    parser.add_argument("--width", type=int, default=512, help="image width, in pixel space")
-    parser.add_argument("--height", type=int, default=320, help="image height, in pixel space")
-    parser.add_argument("--seed", type=int, default=42, help="Seed value for video generation")
-    parser.add_argument('--interp', action='store_true', help="Enable interpolation or not")
-    parser.add_argument('--gpus', type=int, default=1, help="No of gpus to use")
+
+    parser.add_argument('--resolution', type=int, default=256, help='Resolution of the output video')
+    parser.add_argument('--steps', type=int, default=50, help='Number of sampling steps (max 60)')
+    parser.add_argument('--cfg_scale', type=float, default=7.5, help='CFG scale (default: 7.5)')
+    parser.add_argument('--eta', type=float, default=1.0, help='ETA for DDIM sampling (default: 1.0)')
+    parser.add_argument('--fs', type=int, default=0, help='Motion magnitude (default: 3)')
+    parser.add_argument('--seed', type=int, default=123, help='Random seed (default: 123)')
     parser.add_argument("--model", type=str, default="checkpoints", help="Path to checkpoints folder")
 
-    return parser
+    args = parser.parse_args()
+
+    # Call the inference function
+    video_path = infer(args.image, args.prompt, args.result, args.steps, args.cfg_scale, args.eta, args.fs, args.seed, args.resolution, args.model)
+    print(f"Video generated: {video_path}")
 
 if __name__ == "__main__":
-    parser = get_parser()
-    args = parser.parse_args()
-    i2v = Image2Video(f"{args.height}_{args.width}", args.interp, args.gpus, args.model)
-    video_path = i2v.get_image(args.image, args.prompt, args.result, seed=args.seed)
-    print('done', video_path)
+    main()
