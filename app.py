@@ -134,6 +134,9 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
     save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=save_fps)
 
     model = model.cpu()  # Move model back to CPU to free GPU memory
+    del model
+    torch.cuda.empty_cache()
+        
     print('End:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
     elapsed_time = time.time() - start
     minutes, seconds = divmod(elapsed_time, 60)
