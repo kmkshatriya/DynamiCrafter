@@ -135,7 +135,9 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
 
     model = model.cpu()  # Move model back to CPU to free GPU memory
     print('End:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-    print(f"Time used: {(time.time() - start):.2f} seconds")
+    elapsed_time = time.time() - start
+    minutes, seconds = divmod(elapsed_time, 60)
+    print(f"Time used: {int(minutes)} minutes and {seconds:.2f} seconds")
     return result
 
 
