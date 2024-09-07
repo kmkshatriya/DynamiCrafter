@@ -46,6 +46,7 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
     model = load_model_checkpoint(model, ckpt_path)
     model.eval()
     model = model.cuda()
+    model.perframe_ae = True if not width ==256 else False
 
     # Set the frames per second (FPS) for the output video
     save_fps = 8
@@ -61,6 +62,7 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
 
     torch.cuda.empty_cache()
     print('start:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+    start = time.time()
 
     # Ensure the number of steps does not exceed 60
     if steps > 60:
@@ -132,6 +134,8 @@ def infer(image1, prompt, result, width=256, height=256, steps=50, cfg_scale=7.5
     save_videos(batch_samples, result_dir, filenames=[out_vid_nm], fps=save_fps)
 
     model = model.cpu()  # Move model back to CPU to free GPU memory
+    print('End:', prompt, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+    print(f"Time used: {(time.time() - start):.2f} seconds")
     return result
 
 
